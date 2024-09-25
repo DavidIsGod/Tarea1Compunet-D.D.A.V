@@ -167,19 +167,7 @@ private void sendMessageToAnotherClient() throws IOException {
     }
 }
 
-    
-    // Método para mostrar mensajes anteriores
-    private void showPreviousMessages(String targetClient) {
-        Stack<String> stack = messageStacks.get(targetClient);
-        if (stack != null && !stack.isEmpty()) {
-            out.println("Mensajes anteriores con " + targetClient + ":");
-            for (String message : stack) {
-                out.println(message);
-            }
-        } else {
-            out.println("No hay mensajes anteriores con " + targetClient + ".");
-        }
-    }
+
     
     // Método para guardar un mensaje en la pila
     private void saveMessage(String targetClient, String message) {
@@ -220,15 +208,21 @@ private void sendMessageToAnotherClient() throws IOException {
             out.println("Escribe tu mensaje:");
             String message = in.readLine();
             
-            // Guardar el mensaje en el historial del grupo
+            // Guardar el mensaje en el historial del grupo (para el remitente)
             saveGroupMessage(groupName, "Mensaje de " + name + ": " + message);
-            
+    
             // Enviar el mensaje a todos los miembros del grupo
-            group.sendMessage(message, name);
+            group.sendMessage("Mensaje de " + name + ": " + message, name);
+    
+            // Asegurarse de que todos los miembros del grupo guarden el mensaje
+            for (ClientHandler member : group.getMembers()) {
+                member.saveGroupMessage(groupName, "Mensaje de " + name + ": " + message);
+            }
         } else {
             out.println("No eres miembro de ese grupo o el grupo no existe.");
         }
     }
+    
     
     private void showPreviousGroupMessages(String groupName) {
         Stack<String> stack = groupMessageStacks.get(groupName);
@@ -239,6 +233,19 @@ private void sendMessageToAnotherClient() throws IOException {
             }
         } else {
             out.println("No hay mensajes anteriores en el grupo " + groupName + ".");
+        }
+    }
+
+     // Método para mostrar mensajes anteriores
+     private void showPreviousMessages(String targetClient) {
+        Stack<String> stack = messageStacks.get(targetClient);
+        if (stack != null && !stack.isEmpty()) {
+            out.println("Mensajes anteriores con " + targetClient + ":");
+            for (String message : stack) {
+                out.println(message);
+            }
+        } else {
+            out.println("No hay mensajes anteriores con " + targetClient + ".");
         }
     }
     
