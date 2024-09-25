@@ -9,12 +9,17 @@ public class ClientHandler implements Runnable {
     private String name;
     private Set<Group> myGroups; // Colección para almacenar grupos a los que pertenece
     private Map<String, Stack<String>> messageStacks; // Almacena pilas de mensajes con otros clientes
+    private Map<String, Stack<String>> groupMessageStacks; // Historial de mensajes para cada grupo
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
-        this.myGroups = new HashSet<>(); // Inicializar conjunto de grupos
-        this.messageStacks = new HashMap<>(); // Inicializar mapa de pilas de mensajes
+        this.myGroups = new HashSet<>(); 
+        this.messageStacks = new HashMap<>(); // Historial para mensajes de usuarios
+        this.groupMessageStacks = new HashMap<>(); // Historial para mensajes de grupos
     }
+
+
+   
     
 
     @Override
@@ -209,13 +214,40 @@ private void sendMessageToAnotherClient() throws IOException {
         
         Group group = Server.groups.get(groupName);
         if (group != null && myGroups.contains(group)) {
+            // Mostrar mensajes anteriores antes de enviar el nuevo mensaje
+            showPreviousGroupMessages(groupName);
+    
             out.println("Escribe tu mensaje:");
             String message = in.readLine();
-            group.sendMessage("Mensaje de " + name + ": " + message);
+            
+            // Guardar el mensaje en el historial del grupo
+            saveGroupMessage(groupName, "Mensaje de " + name + ": " + message);
+            
+            // Enviar el mensaje a todos los miembros del grupo
+            group.sendMessage(message, name);
         } else {
             out.println("No eres miembro de ese grupo o el grupo no existe.");
         }
     }
+    
+    private void showPreviousGroupMessages(String groupName) {
+        Stack<String> stack = groupMessageStacks.get(groupName);
+        if (stack != null && !stack.isEmpty()) {
+            out.println("Mensajes anteriores en el grupo " + groupName + ":");
+            for (String message : stack) {
+                out.println(message);
+            }
+        } else {
+            out.println("No hay mensajes anteriores en el grupo " + groupName + ".");
+        }
+    }
+    
+    private void saveGroupMessage(String groupName, String message) {
+        groupMessageStacks.putIfAbsent(groupName, new Stack<>()); // Inicializa la pila si no existe
+        groupMessageStacks.get(groupName).push(message); // Añade el mensaje a la pila
+    }
+    
+    
     
     private String getMyGroups() {
         StringBuilder groupList = new StringBuilder();

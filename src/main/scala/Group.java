@@ -26,9 +26,10 @@ public class Group {
         members.remove(member);
     }
 
-    public void sendMessage(String message) {
+    // Modificamos este método para que reciba el nombre del remitente
+    public void sendMessage(String message, String sender) {
         for (ClientHandler member : members) {
-            member.sendMessage(message);
+            member.sendMessage(message, sender);  // Ahora pasamos también el remitente
         }
     }
 }
