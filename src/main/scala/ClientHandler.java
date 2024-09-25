@@ -8,11 +8,14 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private String name;
     private Set<Group> myGroups; // Colección para almacenar grupos a los que pertenece
+    private Map<String, Stack<String>> messageStacks; // Almacena pilas de mensajes con otros clientes
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         this.myGroups = new HashSet<>(); // Inicializar conjunto de grupos
+        this.messageStacks = new HashMap<>(); // Inicializar mapa de pilas de mensajes
     }
+    
 
     @Override
     public void run() {
@@ -26,7 +29,6 @@ public class ClientHandler implements Runnable {
 
             // Añadir cliente al mapa
             Server.clients.put(name, this);
-            System.out.println(name + " se ha conectado.");
 
             boolean running = true;
         while (running) {
@@ -132,31 +134,62 @@ public class ClientHandler implements Runnable {
     }
 
     // Método para enviar un mensaje a otro cliente
-    private void sendMessageToAnotherClient() throws IOException {
-        out.println("Clientes conectados: " + getConnectedClients());
-        out.println("Escribe el nombre del cliente al que deseas enviar un mensaje:");
+private void sendMessageToAnotherClient() throws IOException {
+    out.println("Clientes conectados: " + getConnectedClients());
+    out.println("Escribe el nombre del cliente al que deseas enviar un mensaje:");
 
-        String targetClient = in.readLine();
-        if (targetClient == null) {
+    String targetClient = in.readLine();
+    if (targetClient == null) {
+        throw new IOException("Cliente desconectado");
+    }
+
+    if (Server.clients.containsKey(targetClient) && !targetClient.equals(name)) {
+        // Mostrar mensajes anteriores con el cliente objetivo
+        showPreviousMessages(targetClient);
+
+        out.println("Escribe tu mensaje:");
+        String message = in.readLine();
+        if (message == null) {
             throw new IOException("Cliente desconectado");
         }
 
-        if (Server.clients.containsKey(targetClient) && !targetClient.equals(name)) {
-            out.println("Escribe tu mensaje:");
-            String message = in.readLine();
-            if (message == null) {
-                throw new IOException("Cliente desconectado");
+        // Guardar el mensaje en la pila del remitente
+        saveMessage(targetClient, "Mensaje de " + name + ": " + message);
+        // Enviar el mensaje al destinatario y también guardar en la pila del destinatario
+        Server.sendMessage(targetClient, "Mensaje de " + name + ": " + message, name);
+    } else {
+        out.println("Cliente no válido o es tu propio nombre.");
+    }
+}
+
+    
+    // Método para mostrar mensajes anteriores
+    private void showPreviousMessages(String targetClient) {
+        Stack<String> stack = messageStacks.get(targetClient);
+        if (stack != null && !stack.isEmpty()) {
+            out.println("Mensajes anteriores con " + targetClient + ":");
+            for (String message : stack) {
+                out.println(message);
             }
-            Server.sendMessage(targetClient, "Mensaje de " + name + ": " + message);
         } else {
-            out.println("Cliente no válido o es tu propio nombre.");
+            out.println("No hay mensajes anteriores con " + targetClient + ".");
         }
     }
+    
+    // Método para guardar un mensaje en la pila
+    private void saveMessage(String targetClient, String message) {
+        messageStacks.putIfAbsent(targetClient, new Stack<>());
+        messageStacks.get(targetClient).push(message);
+    }
+    
 
     // Método para enviar un mensaje al cliente
-    public void sendMessage(String message) {
-        out.println(message);
+    public void sendMessage(String message, String sender) {
+        //out.println(message);
+    // Guardar el mensaje recibido en la pila del cliente receptor
+        saveMessage(sender, message);
     }
+
 
     // Obtener una lista de los clientes conectados (excluyendo al propio cliente)
     private String getConnectedClients() {

@@ -29,18 +29,20 @@ public class Server {
     }
 
     // Enviar un mensaje a un cliente en específico
-    public static void sendMessage(String receiverName, String message) {
+    public static void sendMessage(String receiverName, String message, String senderName) {
         ClientHandler receiver = clients.get(receiverName);
         if (receiver != null) {
-            receiver.sendMessage(message);
-        } else {
+            receiver.sendMessage(message, senderName);  // Ahora pasa el nombre del remitente
+         } else {
             System.out.println("Cliente no encontrado: " + receiverName);
         }
-    }
+    }  
+
 
     public static void addGroup(Group group) {
         groups.put(group.getName(), group);
     }
 
+    
     
 }
