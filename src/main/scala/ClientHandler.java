@@ -43,7 +43,8 @@ public class ClientHandler implements Runnable {
             out.println("3. Unirse a un grupo");
             out.println("4. Mis grupos");
             out.println("5. Enviar mensaje a un grupo"); // Nueva opción
-            out.println("6. Salir");
+            out.println("6. Enviar audio a una persona");
+            out.println("7. Salir");
             out.println("Elige una opción:");
 
             String option = in.readLine();
@@ -67,7 +68,11 @@ public class ClientHandler implements Runnable {
                 case "5": // Llama a sendMessageToGroup aquí
                     sendMessageToGroup();
                     break;
+
                 case "6":
+                    sendAudioToAnotherClient();
+                    break;
+                case "7":
                     running = false;
                     break;
                 default:
@@ -263,5 +268,51 @@ private void sendMessageToAnotherClient() throws IOException {
         }
         return groupList.toString().trim();
     }
+
+    private void sendAudioToAnotherClient() throws IOException {
+        out.println("Clientes conectados: " + getConnectedClients());
+        out.println("Escribe el nombre del cliente al que deseas enviar un audio:");
+    
+        String targetClient = in.readLine();
+        if (targetClient == null || !Server.clients.containsKey(targetClient)) {
+            out.println("Cliente no encontrado.");
+            return;
+        }
+    
+        out.println("Escribe la ruta del archivo de audio:");
+        String audioFilePath = in.readLine();
+        File audioFile = new File(audioFilePath);
+    
+        if (!audioFile.exists()) {
+            out.println("Archivo no encontrado.");
+            return;
+        }
+    
+        // Indicar al cliente que se está enviando un archivo de audio
+        out.println("Enviando audio a " + targetClient);
+        Server.sendAudio(targetClient, audioFile, name);
+    }
+
+    public void receiveAudio(File audioFile, String senderName) {
+        try {
+            out.println("Recibiendo audio de " + senderName);
+            byte[] buffer = new byte[4096];
+            FileInputStream fileInput = new FileInputStream(audioFile);
+            OutputStream output = socket.getOutputStream();
+    
+            int bytesRead;
+            while ((bytesRead = fileInput.read(buffer)) > 0) {
+                output.write(buffer, 0, bytesRead);
+            }
+    
+            output.flush();
+            fileInput.close();
+            out.println("Audio recibido correctamente.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
     
 }

@@ -43,6 +43,14 @@ public class Server {
         groups.put(group.getName(), group);
     }
 
+    public static void sendAudio(String receiverName, File audioFile, String senderName) {
+        ClientHandler receiver = clients.get(receiverName);
+        if (receiver != null) {
+            receiver.receiveAudio(audioFile, senderName);
+        } else {
+            System.out.println("Cliente no encontrado: " + receiverName);
+        }
+    }
     
     
 }
