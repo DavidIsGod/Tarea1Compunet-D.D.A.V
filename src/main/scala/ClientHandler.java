@@ -15,116 +15,15 @@ public class ClientHandler implements Runnable {
     private DatagramSocket udpSocket;
     private int udpPort;
     private boolean isCalling = false;
+    private CallHandler callhandler;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         this.myGroups = new HashSet<>(); 
         this.messageStacks = new HashMap<>(); // Historial para mensajes de usuarios
         this.groupMessageStacks = new HashMap<>(); // Historial para mensajes de grupos
-
-        try {
-            this.udpSocket = new DatagramSocket();
-            this.udpPort = udpSocket.getLocalPort();
-            startUdpListener();
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
+        this.callhandler = new CallHandler();
     }
-
-    public int getUdpPort() {
-        return udpPort;
-    }
-   
-    
-    public void startUdpCall() {
-        try {
-            out.println("Clientes conectados: " + getConnectedClients());
-            out.println("Escribe el nombre del cliente al que deseas llamar:");
-    
-            String targetClient = in.readLine();
-            if (targetClient == null || !Server.clients.containsKey(targetClient) || targetClient.equals(name)) {
-                out.println("Cliente no válido o desconectado.");
-                return;
-            }
-    
-            out.println("Llamando a " + targetClient + "...");
-            ClientHandler targetHandler = Server.clients.get(targetClient);
-    
-            if (targetHandler != null) {
-                int targetPort = targetHandler.getUdpPort();
-                InetAddress targetAddress = targetHandler.socket.getInetAddress();
-                isCalling = true; // Marcar que la llamada está activa
-    
-                new Thread(() -> {
-                    try {
-                        // Configurar la captura de audio desde el micrófono
-                        AudioFormat format = new AudioFormat(44100.0f, 16, 2, true, true);
-                        DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
-                        TargetDataLine microphone = (TargetDataLine) AudioSystem.getLine(info);
-                        microphone.open(format);
-                        microphone.start();
-    
-                        byte[] buffer = new byte[1024];
-    
-                        while (isCalling) {
-                            // Leer audio del micrófono
-                            int bytesRead = microphone.read(buffer, 0, buffer.length);
-    
-                            // Enviar el audio capturado a través de UDP
-                            DatagramPacket packet = new DatagramPacket(buffer, bytesRead, targetAddress, targetPort);
-                            udpSocket.send(packet);
-                        }
-    
-                        // Cerrar el micrófono al finalizar la llamada
-                        microphone.close();
-                        out.println("Llamada finalizada.");
-    
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        out.println("Error durante la llamada.");
-                    }
-                }).start();
-            } else {
-                out.println("Cliente no encontrado: " + targetClient);
-            }
-        } catch (IOException e) {
-            out.println("Error al intentar iniciar la llamada: " + e.getMessage());
-        }
-    }
-    
-   
-    
-    public void stopUdpCall() {
-        isCalling = false; // Detener la llamada
-    }
-
-    public void startUdpListener() {
-        new Thread(() -> {
-            try {
-                // Usar un formato de audio más común y compatible
-                AudioFormat format = new AudioFormat(8000.0f, 16, 1, true, false);
-                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                SourceDataLine speakers = (SourceDataLine) AudioSystem.getLine(info);
-                speakers.open(format);
-                speakers.start();
-    
-                byte[] buffer = new byte[1024];
-    
-                while (true) {
-                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                    udpSocket.receive(packet); // Recibir datos de audio
-                    System.out.println("Recibido paquete de " + packet.getAddress().getHostAddress() + ":" + packet.getPort());
-                    // Reproducir los datos recibidos a través de los altavoces
-                    speakers.write(packet.getData(), 0, packet.getLength());
-                }
-    
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-    
-
     @Override
     public void run() {
         try {
@@ -138,6 +37,8 @@ public class ClientHandler implements Runnable {
             // Añadir cliente al mapa
             Server.clients.put(name, this);
 
+            callhandler.startListening();
+
             boolean running = true;
         while (running) {
             out.println("\n--- Menú ---");
@@ -146,8 +47,7 @@ public class ClientHandler implements Runnable {
             out.println("3. Unirse a un grupo");
             out.println("4. Mis grupos");
             out.println("5. Enviar mensaje a un grupo"); // Nueva opción
-            out.println("6. Hacer una llamada de voz");
-            out.println("7.detener llamada de voz");
+            out.println("6. Hacer una llamada de voz a un Usuario");
             out.println("8. Salir");
             out.println("Elige una opción:");
 
@@ -173,10 +73,10 @@ public class ClientHandler implements Runnable {
                     sendMessageToGroup();
                     break;
                 case "6":
-                    startUdpCall();
+                    initiateCall();
                     break;
                 case "7":
-                    stopUdpCall();
+                    
                     break;
                 case "8":
                     running = false;
@@ -197,6 +97,57 @@ public class ClientHandler implements Runnable {
                 }
             } catch (IOException e) {
                 System.out.println("Error al cerrar la conexión: " + e.getMessage());
+            }
+        }
+    }
+
+      // Método para iniciar una llamada
+      private void initiateCall() throws IOException {
+        out.println("Clientes conectados: " + getConnectedClients());
+        out.println("Escribe el nombre del cliente al que deseas llamar:");
+        String targetClient = in.readLine();
+
+        ClientHandler targetHandler = Server.clients.get(targetClient);
+        if (targetHandler != null) {
+            out.println("Llamando a " + targetClient + "...");
+            int targetPort = targetHandler.callhandler.getLocalPort();
+            InetAddress targetAddress = targetHandler.socket.getInetAddress();
+
+            targetHandler.showIncomingCallMenu(name, targetAddress, targetPort);
+        } else {
+            out.println("Cliente no encontrado.");
+        }
+    }
+
+    
+    // Método para mostrar el submenú al cliente receptor
+    public void showIncomingCallMenu(String callerName, InetAddress callerAddress, int callerPort) throws IOException {
+        out.println("Tienes una llamada entrante de " + callerName);
+        out.println("1. Aceptar llamada");
+        out.println("2. Rechazar llamada");
+        out.println("Elige una opción:");
+
+        String option = in.readLine();
+        if ("1".equals(option)) {
+            out.println("Llamada aceptada.");
+            callhandler.startCall(callerAddress, callerPort);
+            showCallMenu(); // Mostrar menú de llamada en curso después de iniciar la llamada
+        } else {
+            out.println("Llamada rechazada.");
+        }
+    }
+
+    private void showCallMenu() throws IOException {
+        while (callhandler.isCalling()) {
+            out.println("\n--- Llamada en curso ---");
+            out.println("1. Finalizar llamada");
+            out.println("Elige una opción:");
+
+            String option = in.readLine();
+            if ("1".equals(option)) {
+                callhandler.stopCall();
+                out.println("Llamada finalizada.");
+                break; // Salir del menú de llamada en curso
             }
         }
     }
