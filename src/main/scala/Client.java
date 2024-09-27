@@ -5,7 +5,7 @@ public class Client {
     public static void main(String[] args) {
         try {
             // Conectarse al servidor en la dirección local y puerto 1234
-            Socket socket = new Socket("localhost", 1234);
+            Socket socket = new Socket("172.20.10.7", 1234);
 
             // Obtener los flujos de entrada y salida
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);

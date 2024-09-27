@@ -288,30 +288,38 @@ private void sendMessageToAnotherClient() throws IOException {
             return;
         }
     
-        // Indicar al cliente que se está enviando un archivo de audio
         out.println("Enviando audio a " + targetClient);
-        Server.sendAudio(targetClient, audioFile, name);
+        ClientHandler targetHandler = Server.clients.get(targetClient);
+        targetHandler.receiveAudio(audioFile, name);
     }
+    
 
     public void receiveAudio(File audioFile, String senderName) {
         try {
             out.println("Recibiendo audio de " + senderName);
-            byte[] buffer = new byte[4096];
-            FileInputStream fileInput = new FileInputStream(audioFile);
-            OutputStream output = socket.getOutputStream();
-    
+            
+            // Crear un archivo temporal para recibir el audio
+            File receivedAudioFile = new File("received_" + audioFile.getName());
+            FileOutputStream fileOutput = new FileOutputStream(receivedAudioFile);
+            InputStream input = new FileInputStream(audioFile); // El audio a ser enviado
+            
+            byte[] buffer = new byte[4096]; // Buffer de 4KB
             int bytesRead;
-            while ((bytesRead = fileInput.read(buffer)) > 0) {
-                output.write(buffer, 0, bytesRead);
+            while ((bytesRead = input.read(buffer)) > 0) {
+                fileOutput.write(buffer, 0, bytesRead);
             }
     
-            output.flush();
-            fileInput.close();
-            out.println("Audio recibido correctamente.");
+            fileOutput.flush();
+            fileOutput.close();
+            input.close();
+            
+            out.println("Audio recibido correctamente y guardado en " + receivedAudioFile.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
+            out.println("Error al recibir el archivo de audio.");
         }
     }
+    
     
     
     
