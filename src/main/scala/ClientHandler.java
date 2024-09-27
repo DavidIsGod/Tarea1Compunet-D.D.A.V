@@ -2,6 +2,8 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import javax.sound.sampled.*;
+
 public class ClientHandler implements Runnable {
     private Socket socket;
     private PrintWriter out;
@@ -10,16 +12,117 @@ public class ClientHandler implements Runnable {
     private Set<Group> myGroups; // Colección para almacenar grupos a los que pertenece
     private Map<String, Stack<String>> messageStacks; // Almacena pilas de mensajes con otros clientes
     private Map<String, Stack<String>> groupMessageStacks; // Historial de mensajes para cada grupo
+    private DatagramSocket udpSocket;
+    private int udpPort;
+    private boolean isCalling = false;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         this.myGroups = new HashSet<>(); 
         this.messageStacks = new HashMap<>(); // Historial para mensajes de usuarios
         this.groupMessageStacks = new HashMap<>(); // Historial para mensajes de grupos
+
+        try {
+            this.udpSocket = new DatagramSocket();
+            this.udpPort = udpSocket.getLocalPort();
+            startUdpListener();
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
     }
 
-
+    public int getUdpPort() {
+        return udpPort;
+    }
    
+    
+    public void startUdpCall() {
+        try {
+            out.println("Clientes conectados: " + getConnectedClients());
+            out.println("Escribe el nombre del cliente al que deseas llamar:");
+    
+            String targetClient = in.readLine();
+            if (targetClient == null || !Server.clients.containsKey(targetClient) || targetClient.equals(name)) {
+                out.println("Cliente no válido o desconectado.");
+                return;
+            }
+    
+            out.println("Llamando a " + targetClient + "...");
+            ClientHandler targetHandler = Server.clients.get(targetClient);
+    
+            if (targetHandler != null) {
+                int targetPort = targetHandler.getUdpPort();
+                InetAddress targetAddress = targetHandler.socket.getInetAddress();
+                isCalling = true; // Marcar que la llamada está activa
+    
+                new Thread(() -> {
+                    try {
+                        // Configurar la captura de audio desde el micrófono
+                        AudioFormat format = new AudioFormat(44100.0f, 16, 2, true, true);
+                        DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+                        TargetDataLine microphone = (TargetDataLine) AudioSystem.getLine(info);
+                        microphone.open(format);
+                        microphone.start();
+    
+                        byte[] buffer = new byte[1024];
+    
+                        while (isCalling) {
+                            // Leer audio del micrófono
+                            int bytesRead = microphone.read(buffer, 0, buffer.length);
+    
+                            // Enviar el audio capturado a través de UDP
+                            DatagramPacket packet = new DatagramPacket(buffer, bytesRead, targetAddress, targetPort);
+                            udpSocket.send(packet);
+                        }
+    
+                        // Cerrar el micrófono al finalizar la llamada
+                        microphone.close();
+                        out.println("Llamada finalizada.");
+    
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        out.println("Error durante la llamada.");
+                    }
+                }).start();
+            } else {
+                out.println("Cliente no encontrado: " + targetClient);
+            }
+        } catch (IOException e) {
+            out.println("Error al intentar iniciar la llamada: " + e.getMessage());
+        }
+    }
+    
+   
+    
+    public void stopUdpCall() {
+        isCalling = false; // Detener la llamada
+    }
+
+    public void startUdpListener() {
+        new Thread(() -> {
+            try {
+                // Usar un formato de audio más común y compatible
+                AudioFormat format = new AudioFormat(8000.0f, 16, 1, true, false);
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+                SourceDataLine speakers = (SourceDataLine) AudioSystem.getLine(info);
+                speakers.open(format);
+                speakers.start();
+    
+                byte[] buffer = new byte[1024];
+    
+                while (true) {
+                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                    udpSocket.receive(packet); // Recibir datos de audio
+                    System.out.println("Recibido paquete de " + packet.getAddress().getHostAddress() + ":" + packet.getPort());
+                    // Reproducir los datos recibidos a través de los altavoces
+                    speakers.write(packet.getData(), 0, packet.getLength());
+                }
+    
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
     
 
     @Override
@@ -43,7 +146,9 @@ public class ClientHandler implements Runnable {
             out.println("3. Unirse a un grupo");
             out.println("4. Mis grupos");
             out.println("5. Enviar mensaje a un grupo"); // Nueva opción
-            out.println("6. Salir");
+            out.println("6. Hacer una llamada de voz");
+            out.println("7.detener llamada de voz");
+            out.println("8. Salir");
             out.println("Elige una opción:");
 
             String option = in.readLine();
@@ -68,6 +173,12 @@ public class ClientHandler implements Runnable {
                     sendMessageToGroup();
                     break;
                 case "6":
+                    startUdpCall();
+                    break;
+                case "7":
+                    stopUdpCall();
+                    break;
+                case "8":
                     running = false;
                     break;
                 default:

@@ -1,0 +1,31 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Client",
+            "request": "launch",
+            "mainClass": "Client",
+            "console": "externalTerminal",
+            "projectName": "Tarea1Compunet-D.D.A.V_aa1b3811"
+        },
+        {
+            "type": "java",
+            "name": "Server",
+            "request": "launch",
+            "mainClass": "Server",
+            "console": "integratedTerminal",
+            "projectName": "Tarea1Compunet-D.D.A.V_aa1b3811"
+        }
+    ]
+}
