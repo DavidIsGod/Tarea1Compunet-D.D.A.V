@@ -2,6 +2,11 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineEvent;
+
 public class ClientHandler implements Runnable {
     private Socket socket;
     private PrintWriter out;
@@ -10,17 +15,18 @@ public class ClientHandler implements Runnable {
     private Set<Group> myGroups; // Colección para almacenar grupos a los que pertenece
     private Map<String, Stack<String>> messageStacks; // Almacena pilas de mensajes con otros clientes
     private Map<String, Stack<String>> groupMessageStacks; // Historial de mensajes para cada grupo
+    private Map<String, Stack<File>> audioStacks; // Almacena pilas de audios enviados a otros clientes
+    private Map<String, Stack<File>> groupAudioStacks; // Historial de audios para cada grupo
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
-        this.myGroups = new HashSet<>(); 
+        this.myGroups = new HashSet<>();
         this.messageStacks = new HashMap<>(); // Historial para mensajes de usuarios
         this.groupMessageStacks = new HashMap<>(); // Historial para mensajes de grupos
-    }
-
-
+        this.audioStacks = new HashMap<>(); // Historial para audios de usuarios
+        this.groupAudioStacks = new HashMap<>(); // Historial para audios de grupos
    
-    
+    }
 
     @Override
     public void run() {
@@ -36,45 +42,54 @@ public class ClientHandler implements Runnable {
             Server.clients.put(name, this);
 
             boolean running = true;
-        while (running) {
-            out.println("\n--- Menú ---");
-            out.println("1. Enviar mensaje a un usuario");
-            out.println("2. Crear grupo");
-            out.println("3. Unirse a un grupo");
-            out.println("4. Mis grupos");
-            out.println("5. Enviar mensaje a un grupo"); // Nueva opción
-            out.println("6. Salir");
-            out.println("Elige una opción:");
+            while (running) {
+                out.println("\n--- Menú ---");
+                out.println("1. Enviar mensaje a un usuario");
+                out.println("2. Crear grupo");
+                out.println("3. Unirse a un grupo");
+                out.println("4. Mis grupos");
+                out.println("5. Enviar mensaje a un grupo");
+                out.println("6. Enviar audio a un usuario");
+                out.println("7. Enviar audio a un grupo");
+                out.println("8. Salir");
+                System.out.println("9. historial");
+                out.println("Elige una opción:");
 
-            String option = in.readLine();
-            if (option == null) {
-                throw new IOException("Cliente desconectado");
-            }
+                String option = in.readLine();
+                if (option == null) {
+                    throw new IOException("Cliente desconectado");
+                }
 
-            switch (option) {
-                case "1":
-                    sendMessageToAnotherClient();
-                    break;
-                case "2":
-                    createGroup();
-                    break;
-                case "3":
-                    joinGroup();
-                    break;
-                case "4":
-                    showMyGroups();
-                    break;
-                case "5": // Llama a sendMessageToGroup aquí
-                    sendMessageToGroup();
-                    break;
-                case "6":
-                    running = false;
-                    break;
-                default:
-                    out.println("Opción no válida.");
-                    break;
+                switch (option) {
+                    case "1":
+                        sendMessageToAnotherClient();
+                        break;
+                    case "2":
+                        createGroup();
+                        break;
+                    case "3":
+                        joinGroup();
+                        break;
+                    case "4":
+                        showMyGroups();
+                        break;
+                    case "5":
+                        sendMessageToGroup();
+                        break;
+                    case "6":
+                        sendAudioToAnotherClient();
+                        break;
+                    case "7":
+                        sendAudioToGroup();
+                        break;
+                    case "8":
+                        running = false;
+                        break
+                    default:
+                        out.println("Opción no válida.");
+                        break;
+                }
             }
-        }
 
         } catch (IOException e) {
             System.out.println("Error de I/O: " + e.getMessage());
@@ -90,6 +105,104 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // Método para enviar audio a otro cliente
+    private void sendAudioToAnotherClient() throws IOException {
+        out.println("Clientes conectados: " + getConnectedClients());
+        out.println("Escribe el nombre del cliente al que deseas enviar un audio:");
+
+        String targetClient = in.readLine();
+        if (targetClient == null) {
+            throw new IOException("Cliente desconectado");
+        }
+
+        if (Server.clients.containsKey(targetClient) && !targetClient.equals(name)) {
+            out.println("Escribe la ruta del archivo de audio que deseas enviar:");
+            String audioFilePath = in.readLine();
+            File audioFile = new File(audioFilePath);
+
+            if (audioFile.exists() && audioFile.isFile()) {
+                Server.sendAudio(targetClient, audioFile);
+                out.println("Audio enviado a " + targetClient);
+            } else {
+                out.println("Archivo no encontrado o no es un archivo válido.");
+            }
+        } else {
+            out.println("Cliente no válido o es tu propio nombre.");
+        }
+    }
+
+    // Método para enviar audio a un grupo
+    private void sendAudioToGroup() throws IOException {
+        out.println("Mis grupos: " + getMyGroups());
+        out.println("Escribe el nombre del grupo al que deseas enviar un audio:");
+        String groupName = in.readLine();
+
+        Group group = Server.groups.get(groupName);
+        if (group != null && myGroups.contains(group)) {
+            out.println("Escribe la ruta del archivo de audio que deseas enviar:");
+            String audioFilePath = in.readLine();
+            File audioFile = new File(audioFilePath);
+
+            if (audioFile.exists() && audioFile.isFile()) {
+                group.sendAudio(audioFile, name);
+                out.println("Audio enviado al grupo " + groupName);
+            } else {
+                out.println("Archivo no encontrado o no es un archivo válido.");
+            }
+        } else {
+            out.println("No eres miembro de ese grupo o el grupo no existe.");
+        }
+    }
+
+    // Método para recibir un audio
+    public void sendAudio(File audioFile, String sender) {
+        try {
+            out.println("Audio recibido de " + sender + ": " + audioFile.getName());
+        } catch (Exception e) {
+            System.out.println("Error al enviar audio a " + name + ": " + e.getMessage());
+        }
+    }
+    public void playAudio(File audioFile) {
+        Server.playAudio(audioFile.getAbsolutePath()); // Llama al método de reproducción del servidor
+    }
+ // Método para guardar un audio enviado en la pila
+    private void saveAudio(String targetClient, File audioFile) {
+        audioStacks.putIfAbsent(targetClient, new Stack<>());
+        audioStacks.get(targetClient).push(audioFile);
+    }
+
+    // Método para guardar un audio en el historial del grupo
+    private void saveGroupAudio(String groupName, File audioFile) {
+        groupAudioStacks.putIfAbsent(groupName, new Stack<>());
+        groupAudioStacks.get(groupName).push(audioFile);
+    }
+
+    // Método para mostrar el historial de audios enviados a un cliente
+    public void showAudioHistory(String targetClient) {
+        Stack<File> stack = audioStacks.get(targetClient);
+        if (stack != null && !stack.isEmpty()) {
+            out.println("Historial de audios enviados a " + targetClient + ":");
+            for (File audio : stack) {
+                out.println(audio.getName());
+            }
+        } else {
+            out.println("No hay audios enviados a " + targetClient + ".");
+        }
+    }
+
+    // Método para mostrar el historial de audios enviados en un grupo
+    public void showGroupAudioHistory(String groupName) {
+        Stack<File> stack = groupAudioStacks.get(groupName);
+        if (stack != null && !stack.isEmpty()) {
+            out.println("Historial de audios enviados en el grupo " + groupName + ":");
+            for (File audio : stack) {
+                out.println(audio.getName());
+            }
+        } else {
+            out.println("No hay audios enviados en el grupo " + groupName + ".");
+        }
+    }
+    
     private void createGroup() throws IOException {
         out.println("Introduce el nombre del nuevo grupo:");
         String groupName = in.readLine();
