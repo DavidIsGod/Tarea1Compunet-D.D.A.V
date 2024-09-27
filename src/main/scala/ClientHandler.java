@@ -298,8 +298,10 @@ private void sendMessageToAnotherClient() throws IOException {
         try {
             out.println("Recibiendo audio de " + senderName);
             
-            // Crear un archivo temporal para recibir el audio
-            File receivedAudioFile = new File("received_" + audioFile.getName());
+            // Definir la ruta de guardado del archivo en la máquina del cliente
+            String userHome = System.getProperty("user.home");
+            File receivedAudioFile = new File(userHome + File.separator + "Desktop" + File.separator + "received_" + audioFile.getName());
+            
             FileOutputStream fileOutput = new FileOutputStream(receivedAudioFile);
             InputStream input = new FileInputStream(audioFile); // El audio a ser enviado
             
@@ -319,6 +321,7 @@ private void sendMessageToAnotherClient() throws IOException {
             out.println("Error al recibir el archivo de audio.");
         }
     }
+    
     
     
     
