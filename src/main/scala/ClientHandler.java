@@ -84,7 +84,7 @@ public class ClientHandler implements Runnable {
                         break;
                     case "8":
                         running = false;
-                        break
+                        break;
                     default:
                         out.println("Opción no válida.");
                         break;
