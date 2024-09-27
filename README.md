@@ -1,7 +1,10 @@
 Integrantes:
   Valentina Gomez A00398790
+  
   David Troya A00399865
+  
   Daniel Gonzales A00399873
+  
   Alexis Delgado A00399176
 
 Instrucciones para ejecutar el codigo:
