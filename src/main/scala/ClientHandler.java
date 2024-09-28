@@ -292,15 +292,21 @@ private void sendMessageToAnotherClient() throws IOException {
         ClientHandler targetHandler = Server.clients.get(targetClient);
         out.println("Enviando audio a " + targetClient);
     
-        // Leer el archivo de audio y enviarlo
-        try (FileInputStream fileInputStream = new FileInputStream(audioFile);
-             OutputStream outputStream = targetHandler.socket.getOutputStream()) {
+        try (FileInputStream fileInputStream = new FileInputStream(audioFile)) {
+            // Enviar el nombre del archivo
+            targetHandler.out.println("AUDIO_FILE:" + audioFile.getName());
+            
+            // Enviar el tamaño del archivo
+            long fileSize = audioFile.length();
+            targetHandler.out.println("FILE_SIZE:" + fileSize);
+            
+            // Enviar los datos del archivo
             byte[] buffer = new byte[4096];
             int bytesRead;
             while ((bytesRead = fileInputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
+                targetHandler.socket.getOutputStream().write(buffer, 0, bytesRead);
             }
-            outputStream.flush();
+            targetHandler.socket.getOutputStream().flush();
             out.println("Audio enviado correctamente.");
         } catch (IOException e) {
             out.println("Error al enviar el audio.");
@@ -309,29 +315,42 @@ private void sendMessageToAnotherClient() throws IOException {
     }
     
     
+    
 
     public void receiveAudio(File audioFile, String senderName) {
         try {
-            out.println("Recibiendo audio de " + senderName);
+            // Mostrar mensaje del remitente
+            System.out.println("Recibiendo audio de: " + senderName);
     
-            // Crear un archivo local en el cliente receptor
-            File receivedAudioFile = new File("received_" + audioFile.getName());
-            try (FileOutputStream fileOutput = new FileOutputStream(receivedAudioFile);
-                 InputStream input = socket.getInputStream()) {
+            // Verificar si el archivo de audio recibido es válido
+            if (audioFile != null && audioFile.exists()) {
+                // Ruta donde se guardará el archivo de audio en el cliente
+                File outputFile = new File("audios_recibidos/" + audioFile.getName());
     
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = input.read(buffer)) != -1) {
-                    fileOutput.write(buffer, 0, bytesRead);
+                // Crear directorio si no existe
+                outputFile.getParentFile().mkdirs();
+    
+                // Copiar el archivo de audio recibido a la carpeta de audios recibidos
+                try (InputStream in = new FileInputStream(audioFile);
+                     OutputStream out = new FileOutputStream(outputFile)) {
+    
+                    byte[] buffer = new byte[1024];
+                    int length;
+                    while ((length = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, length);
+                    }
                 }
-                fileOutput.flush();
-                out.println("Audio recibido correctamente y guardado en " + receivedAudioFile.getAbsolutePath());
+    
+                System.out.println("Audio recibido correctamente y guardado en: " + outputFile.getAbsolutePath());
+            } else {
+                System.out.println("Error: archivo de audio no válido.");
             }
+    
         } catch (IOException e) {
-            out.println("Error al recibir el archivo de audio.");
-            e.printStackTrace();
+            System.out.println("Error al recibir el archivo de audio: " + e.getMessage());
         }
     }
+    
     
     
     
