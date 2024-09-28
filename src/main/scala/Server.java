@@ -46,11 +46,17 @@ public class Server {
     public static void sendAudio(String receiverName, File audioFile, String senderName) {
         ClientHandler receiver = clients.get(receiverName);
         if (receiver != null) {
-            receiver.receiveAudio(audioFile, senderName);
+            try {
+                receiver.sendAudioFile(audioFile, senderName);
+            } catch (IOException e) {
+                System.out.println("Error al enviar audio a " + receiverName + ": " + e.getMessage());
+            }
         } else {
             System.out.println("Cliente no encontrado: " + receiverName);
         }
     }
+
+    
     
     
 }

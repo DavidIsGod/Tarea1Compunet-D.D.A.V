@@ -314,6 +314,28 @@ private void sendMessageToAnotherClient() throws IOException {
         }
     }
     
+    public void sendAudioFile(File audioFile, String senderName) throws IOException {
+        out.println("AUDIO_FILE:" + audioFile.getName());
+        out.println("FILE_SIZE:" + audioFile.length());
+        
+        try (FileInputStream fileInputStream = new FileInputStream(audioFile)) {
+            OutputStream outputStream = socket.getOutputStream();
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.flush();
+
+            // Esperar confirmación del cliente
+            String confirmation = in.readLine();
+            if ("FILE_RECEIVED_OK".equals(confirmation)) {
+                System.out.println("Audio enviado correctamente a " + name);
+            } else {
+                System.out.println("Error al enviar audio a " + name + ". El cliente no confirmó la recepción completa.");
+            }
+        }
+    }
     
     
 
