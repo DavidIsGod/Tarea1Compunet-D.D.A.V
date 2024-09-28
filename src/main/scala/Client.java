@@ -4,15 +4,11 @@ import java.net.*;
 public class Client {
     public static void main(String[] args) {
         try {
-            // Conectarse al servidor en la dirección local y puerto 1234
-            Socket socket = new Socket("192.168.20.98", 1234);
-
-            // Obtener los flujos de entrada y salida
+            Socket socket = new Socket("localhost", 1234);
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
 
-            // Crear un hilo para escuchar mensajes del servidor de forma independiente
             Thread messageListener = new Thread(() -> {
                 try {
                     String fromServer;
@@ -24,29 +20,24 @@ public class Client {
                             
                             System.out.println("Recibiendo archivo de audio: " + fileName);
                             receiveAudioFile(socket, fileName, fileSize);
+                            System.out.println("Recepción de audio completada.");
                         } else {
                             System.out.println(fromServer);
                         }
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    System.out.println("Error en la recepción de mensajes: " + e.getMessage());
                 }
             });
-            messageListener.start(); // Iniciar el hilo de recepción de mensajes
+            messageListener.start();
 
-            // Leer mensajes del usuario y enviarlos al servidor
             String fromUser;
-
-            // La entrada principal se usa para enviar datos al servidor, como el nombre y las opciones
-            while (true) {
-                fromUser = stdIn.readLine();
-                if (fromUser != null) {
-                    out.println(fromUser); // Enviar datos al servidor
-                }
+            while ((fromUser = stdIn.readLine()) != null) {
+                out.println(fromUser);
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Error de conexión: " + e.getMessage());
         }
     }
 
@@ -54,16 +45,17 @@ public class Client {
         File outputFile = new File("audios_recibidos/" + fileName);
         outputFile.getParentFile().mkdirs();
 
-        try (FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
-             InputStream inputStream = socket.getInputStream()) {
+        try (InputStream inputStream = new BufferedInputStream(socket.getInputStream());
+             FileOutputStream fileOutputStream = new FileOutputStream(outputFile)) {
 
-            byte[] buffer = new byte[4096];
+            byte[] buffer = new byte[8192];
             int bytesRead;
             long totalBytesRead = 0;
 
             while (totalBytesRead < fileSize && (bytesRead = inputStream.read(buffer, 0, (int)Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
                 fileOutputStream.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
+                System.out.println("Progreso: " + (totalBytesRead * 100 / fileSize) + "%");
             }
 
             System.out.println("Audio recibido y guardado en: " + outputFile.getAbsolutePath());

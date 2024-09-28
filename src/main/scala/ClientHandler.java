@@ -319,39 +319,51 @@ private void sendMessageToAnotherClient() throws IOException {
 
     public void receiveAudio(File audioFile, String senderName) {
         try {
-            // Mostrar mensaje del remitente
             System.out.println("Recibiendo audio de: " + senderName);
     
-            // Verificar si el archivo de audio recibido es válido
             if (audioFile != null && audioFile.exists()) {
-                // Ruta donde se guardará el archivo de audio en el cliente
                 File outputFile = new File("audios_recibidos/" + audioFile.getName());
-    
-                // Crear directorio si no existe
                 outputFile.getParentFile().mkdirs();
     
-                // Copiar el archivo de audio recibido a la carpeta de audios recibidos
+                long inputFileSize = audioFile.length();
+                System.out.println("Tamaño del archivo recibido: " + inputFileSize + " bytes");
+    
                 try (InputStream in = new FileInputStream(audioFile);
                      OutputStream out = new FileOutputStream(outputFile)) {
     
                     byte[] buffer = new byte[1024];
                     int length;
+                    long totalBytesWritten = 0;
+    
                     while ((length = in.read(buffer)) > 0) {
                         out.write(buffer, 0, length);
+                        totalBytesWritten += length;
+                    }
+    
+                    System.out.println("Tamaño del archivo guardado: " + totalBytesWritten + " bytes");
+                    System.out.println("Audio recibido y guardado en: " + outputFile.getAbsolutePath());
+    
+                    if (totalBytesWritten != inputFileSize) {
+                        System.out.println("ADVERTENCIA: El tamaño del archivo guardado no coincide con el tamaño del archivo recibido.");
                     }
                 }
     
-                System.out.println("Audio recibido correctamente y guardado en: " + outputFile.getAbsolutePath());
+                // Verificar el tamaño del archivo guardado
+                long outputFileSize = outputFile.length();
+                System.out.println("Tamaño del archivo en disco: " + outputFileSize + " bytes");
+    
+                if (outputFileSize != inputFileSize) {
+                    System.out.println("ADVERTENCIA: El tamaño del archivo en disco no coincide con el tamaño del archivo recibido.");
+                }
             } else {
-                System.out.println("Error: archivo de audio no válido.");
+                System.out.println("Error: archivo de audio no válido o no existe.");
             }
     
         } catch (IOException e) {
             System.out.println("Error al recibir el archivo de audio: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-    
-    
     
     
     
