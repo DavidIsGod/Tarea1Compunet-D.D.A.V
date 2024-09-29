@@ -43,6 +43,7 @@ public class ClientHandler implements Runnable {
             Server.clients.put(name, this);
 
             boolean running = true;
+
             while (running) {
                 out.println("\n--- Menú ---");
                 out.println("1. Enviar mensaje a un usuario");
@@ -94,6 +95,7 @@ public class ClientHandler implements Runnable {
                         out.println("Opción no válida.");
                         break;
                 }
+
             }
 
         } catch (IOException e) {
@@ -415,5 +417,125 @@ private void sendMessageToAnotherClient() throws IOException {
         }
         return groupList.toString().trim();
     }
+
+    private void sendAudioToAnotherClient() throws IOException {
+        out.println("Clientes conectados: " + getConnectedClients());
+        out.println("Escribe el nombre del cliente al que deseas enviar un audio:");
+    
+        String targetClient = in.readLine();
+        if (targetClient == null || !Server.clients.containsKey(targetClient)) {
+            out.println("Cliente no encontrado.");
+            return;
+        }
+    
+        out.println("Escribe la ruta del archivo de audio:");
+        String audioFilePath = in.readLine();
+        File audioFile = new File(audioFilePath);
+    
+        if (!audioFile.exists()) {
+            out.println("Archivo no encontrado.");
+            return;
+        }
+    
+        // Enviar el archivo de audio al cliente receptor
+        ClientHandler targetHandler = Server.clients.get(targetClient);
+        out.println("Enviando audio a " + targetClient);
+    
+        try (FileInputStream fileInputStream = new FileInputStream(audioFile)) {
+            // Enviar el nombre del archivo
+            targetHandler.out.println("AUDIO_FILE:" + audioFile.getName());
+            
+            // Enviar el tamaño del archivo
+            long fileSize = audioFile.length();
+            targetHandler.out.println("FILE_SIZE:" + fileSize);
+            
+            // Enviar los datos del archivo
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                targetHandler.socket.getOutputStream().write(buffer, 0, bytesRead);
+            }
+            targetHandler.socket.getOutputStream().flush();
+            out.println("Audio enviado correctamente.");
+        } catch (IOException e) {
+            out.println("Error al enviar el audio.");
+            e.printStackTrace();
+        }
+    }
+    
+    public void sendAudioFile(File audioFile, String senderName) throws IOException {
+        out.println("AUDIO_FILE:" + audioFile.getName());
+        out.println("FILE_SIZE:" + audioFile.length());
+        
+        try (FileInputStream fileInputStream = new FileInputStream(audioFile)) {
+            OutputStream outputStream = socket.getOutputStream();
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.flush();
+
+            // Esperar confirmación del cliente
+            String confirmation = in.readLine();
+            if ("FILE_RECEIVED_OK".equals(confirmation)) {
+                System.out.println("Audio enviado correctamente a " + name);
+            } else {
+                System.out.println("Error al enviar audio a " + name + ". El cliente no confirmó la recepción completa.");
+            }
+        }
+    }
+    
+    
+
+    public void receiveAudio(File audioFile, String senderName) {
+        try {
+            System.out.println("Recibiendo audio de: " + senderName);
+    
+            if (audioFile != null && audioFile.exists()) {
+                File outputFile = new File("audios_recibidos/" + audioFile.getName());
+                outputFile.getParentFile().mkdirs();
+    
+                long inputFileSize = audioFile.length();
+                System.out.println("Tamaño del archivo recibido: " + inputFileSize + " bytes");
+    
+                try (InputStream in = new FileInputStream(audioFile);
+                     OutputStream out = new FileOutputStream(outputFile)) {
+    
+                    byte[] buffer = new byte[1024];
+                    int length;
+                    long totalBytesWritten = 0;
+    
+                    while ((length = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, length);
+                        totalBytesWritten += length;
+                    }
+    
+                    System.out.println("Tamaño del archivo guardado: " + totalBytesWritten + " bytes");
+                    System.out.println("Audio recibido y guardado en: " + outputFile.getAbsolutePath());
+    
+                    if (totalBytesWritten != inputFileSize) {
+                        System.out.println("ADVERTENCIA: El tamaño del archivo guardado no coincide con el tamaño del archivo recibido.");
+                    }
+                }
+    
+                // Verificar el tamaño del archivo guardado
+                long outputFileSize = outputFile.length();
+                System.out.println("Tamaño del archivo en disco: " + outputFileSize + " bytes");
+    
+                if (outputFileSize != inputFileSize) {
+                    System.out.println("ADVERTENCIA: El tamaño del archivo en disco no coincide con el tamaño del archivo recibido.");
+                }
+            } else {
+                System.out.println("Error: archivo de audio no válido o no existe.");
+            }
+    
+        } catch (IOException e) {
+            System.out.println("Error al recibir el archivo de audio: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    
     
 }

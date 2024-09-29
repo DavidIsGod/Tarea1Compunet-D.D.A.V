@@ -65,4 +65,22 @@ public class Server {
             System.out.println("Error al reproducir el audio: " + e.getMessage());
         }
     }
+
+    public static void sendAudio(String receiverName, File audioFile, String senderName) {
+        ClientHandler receiver = clients.get(receiverName);
+        if (receiver != null) {
+            try {
+                receiver.sendAudioFile(audioFile, senderName);
+            } catch (IOException e) {
+                System.out.println("Error al enviar audio a " + receiverName + ": " + e.getMessage());
+            }
+        } else {
+            System.out.println("Cliente no encontrado: " + receiverName);
+        }
+    }
+
+    
+    
+    
+
 }
