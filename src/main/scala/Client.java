@@ -17,14 +17,10 @@ public class Client {
                 try {
                     String fromServer;
                     while ((fromServer = in.readLine()) != null) {
-                        // Mostrar cualquier mensaje recibido del servidor
                         System.out.println(fromServer);
-
-                        // Manejar la notificación de llamada
+                        
                         if (fromServer.contains("te está llamando")) {
-                            System.out.println("¿Quieres aceptar la llamada? (sí/no)");
-                            String response = stdIn.readLine(); // Leer respuesta del usuario
-                            out.println(response); // Enviar respuesta al servidor
+                            System.out.println("Estás en llamada con " + fromServer.split(" ")[0]); 
                         }
                     }
                 } catch (IOException e) {

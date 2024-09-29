@@ -121,14 +121,14 @@ public class ClientHandler implements Runnable {
     
         if (Server.clients.containsKey(targetClient) && !targetClient.equals(name)) {
             // Notifica al cliente que está recibiendo una llamada
-            Server.clients.get(targetClient).out.println(name + " te está llamando. ¿Aceptar? (sí/no)");
+            Server.clients.get(targetClient).out.println(name + " te está llamando. Llamada aceptada automáticamente.");
     
             out.println("Llamada aceptada por " + targetClient);
             System.out.println("Llamada iniciada con " + targetClient);
     
             // DatagramSocket para la llamada
             DatagramSocket audioSocket = new DatagramSocket(); 
-            InetAddress targetAddress = InetAddress.getByName("localhost"); 
+            InetAddress targetAddress = InetAddress.getByName("localhost");
             int targetPort = 1234; 
     
             // Iniciar AudioSender en un hilo para enviar audio
@@ -143,6 +143,7 @@ public class ClientHandler implements Runnable {
             out.println("Cliente no válido o es tu propio nombre.");
         }
     }
+    
     
     // Método para enviar audio a otro cliente
     private void sendAudioToAnotherClient() throws IOException {

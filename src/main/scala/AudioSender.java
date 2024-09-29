@@ -17,17 +17,17 @@ public class AudioSender implements Runnable {
     @Override
     public void run() {
         try {
-            AudioFormat format = new AudioFormat(16000, 16, 1, true, true);
-            TargetDataLine line = AudioSystem.getTargetDataLine(format);
-            line.open(format);
-            line.start();
+            AudioFormat format = new AudioFormat(44100, 16, 2, true, true);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+            TargetDataLine targetLine = (TargetDataLine) AudioSystem.getLine(info);
+            targetLine.open(format);
+            targetLine.start();
 
             byte[] buffer = new byte[4096];
-
             while (true) {
-                int bytesRead = line.read(buffer, 0, buffer.length); // Captura audio del micrófono
+                int bytesRead = targetLine.read(buffer, 0, buffer.length);
                 DatagramPacket packet = new DatagramPacket(buffer, bytesRead, targetAddress, targetPort);
-                socket.send(packet); // Envía el paquete de audio
+                socket.send(packet);
             }
         } catch (Exception e) {
             e.printStackTrace();
