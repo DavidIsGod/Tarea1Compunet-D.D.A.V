@@ -33,3 +33,13 @@ Quinta Funcionalidad:
 Esta funcionalidad, "Enviar mensaje a un grupo" te mostrara todos los grupos a los que estas unido, te pedira que ingreses el nombre del grupo al que deseas enviarle el mensaje y posteriormente te pedira que escribes el mensaje que deseas 
 enviar, y puedes verificar si ese mensaje llego, ingresando a la opcion del menu "Enviar mensaje a un grupo" de los otros clientes que estan unidos en el. Se te mostrara el mensaje que se envio junto con el historial de ese grupo (si existe)
 
+Sexta Funcionalidad: Enviar audio a una persona
+La sexta funcionalidad en el menú se llama "Enviar audio a una persona". Cuando seleccionas esta opción, el sistema te muestra la lista de los clientes conectados. Después, te solicita que escribas el nombre del usuario al que deseas enviarle un audio. Una vez ingresado el nombre, el sistema te pedirá que ingreses la ruta del archivo de audio que deseas enviar. Si la ruta es válida y el archivo existe, se inicia el proceso de envío del audio.
+
+El sistema envía el nombre del archivo, su tamaño, y finalmente los datos del archivo de audio al cliente receptor. El destinatario recibirá el audio en su terminal y podrá reproducirlo desde la ruta donde se almacenó. Si ocurre algún error durante el envío (por ejemplo, si el archivo no se encuentra), se mostrará un mensaje de error en la terminal del remitente.
+
+Séptima Funcionalidad: Enviar audio a un grupo
+La séptima funcionalidad se llama "Enviar audio a un grupo". Cuando seleccionas esta opción, el sistema te muestra una lista de los grupos a los que perteneces. A continuación, te pide que ingreses el nombre del grupo al que deseas enviar el audio. Una vez seleccionado el grupo, te solicita la ruta del archivo de audio que deseas compartir.
+
+Si el archivo existe, el sistema procede a enviar el audio a todos los miembros del grupo. Se utiliza un ExecutorService para gestionar el envío de manera concurrente, lo que significa que el audio se envía a varios miembros al mismo tiempo. Cada miembro del grupo recibe y guarda el audio en su directorio correspondiente. Una vez finalizado el proceso, se muestra un mensaje confirmando que el audio ha sido enviado correctamente al grupo. En caso de que el archivo no se encuentre o si no eres miembro del grupo, el sistema te mostrará un mensaje de error.
+
