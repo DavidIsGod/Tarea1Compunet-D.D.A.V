@@ -19,6 +19,13 @@ public class Client {
                     while ((fromServer = in.readLine()) != null) {
                         // Mostrar cualquier mensaje recibido del servidor
                         System.out.println(fromServer);
+
+                        // Manejar la notificación de llamada
+                        if (fromServer.contains("te está llamando")) {
+                            System.out.println("¿Quieres aceptar la llamada? (sí/no)");
+                            String response = stdIn.readLine(); // Leer respuesta del usuario
+                            out.println(response); // Enviar respuesta al servidor
+                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -28,8 +35,6 @@ public class Client {
 
             // Leer mensajes del usuario y enviarlos al servidor
             String fromUser;
-
-            // La entrada principal se usa para enviar datos al servidor, como el nombre y las opciones
             while (true) {
                 fromUser = stdIn.readLine();
                 if (fromUser != null) {

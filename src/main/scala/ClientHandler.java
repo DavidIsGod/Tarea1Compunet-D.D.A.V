@@ -17,6 +17,7 @@ public class ClientHandler implements Runnable {
     private Map<String, Stack<String>> groupMessageStacks; // Historial de mensajes para cada grupo
     private Map<String, Stack<File>> audioStacks; // Almacena pilas de audios enviados a otros clientes
     private Map<String, Stack<File>> groupAudioStacks; // Historial de audios para cada grupo
+    private boolean inCall = false;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -51,7 +52,8 @@ public class ClientHandler implements Runnable {
                 out.println("5. Enviar mensaje a un grupo");
                 out.println("6. Enviar audio a un usuario");
                 out.println("7. Enviar audio a un grupo");
-                out.println("8. Salir");
+                out.println("8. Iniciar llamada");
+                out.println("9. Salir");
                 System.out.println("9. historial");
                 out.println("Elige una opción:");
 
@@ -83,6 +85,9 @@ public class ClientHandler implements Runnable {
                         sendAudioToGroup();
                         break;
                     case "8":
+                        makeCallToAnotherClient(); // Iniciar llamada
+                        break;
+                    case "9":
                         running = false;
                         break;
                     default:
@@ -105,6 +110,40 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    private void makeCallToAnotherClient() throws IOException {
+        out.println("Clientes conectados: " + getConnectedClients());
+        out.println("Escribe el nombre del cliente al que deseas llamar:");
+    
+        String targetClient = in.readLine();
+        if (targetClient == null) {
+            throw new IOException("Cliente desconectado");
+        }
+    
+        if (Server.clients.containsKey(targetClient) && !targetClient.equals(name)) {
+            // Notifica al cliente que está recibiendo una llamada
+            Server.clients.get(targetClient).out.println(name + " te está llamando. ¿Aceptar? (sí/no)");
+    
+            out.println("Llamada aceptada por " + targetClient);
+            System.out.println("Llamada iniciada con " + targetClient);
+    
+            // DatagramSocket para la llamada
+            DatagramSocket audioSocket = new DatagramSocket(); 
+            InetAddress targetAddress = InetAddress.getByName("localhost"); 
+            int targetPort = 1234; 
+    
+            // Iniciar AudioSender en un hilo para enviar audio
+            AudioSender audioSender = new AudioSender(audioSocket, targetAddress, targetPort);
+            new Thread(audioSender).start(); 
+    
+            // Iniciar AudioReceiver para recibir audio
+            DatagramSocket targetAudioSocket = new DatagramSocket(targetPort); 
+            AudioReceiver audioReceiver = new AudioReceiver(targetAudioSocket);
+            new Thread(audioReceiver).start(); 
+        } else {
+            out.println("Cliente no válido o es tu propio nombre.");
+        }
+    }
+    
     // Método para enviar audio a otro cliente
     private void sendAudioToAnotherClient() throws IOException {
         out.println("Clientes conectados: " + getConnectedClients());

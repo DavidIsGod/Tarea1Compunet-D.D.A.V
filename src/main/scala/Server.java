@@ -35,6 +35,7 @@ public class Server {
             clients.get(targetClient).sendMessage(message, sender);
         }
     }
+
     public static void sendAudio(String targetClient, File audioFile) {
         ClientHandler targetHandler = clients.get(targetClient);
         if (targetHandler != null) {
@@ -65,4 +66,3 @@ public class Server {
         }
     }
 }
-
