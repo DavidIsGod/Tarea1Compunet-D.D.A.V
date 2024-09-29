@@ -5,6 +5,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
 public class ClientHandler implements Runnable {
     private Socket socket;
     private PrintWriter out;
@@ -347,7 +353,7 @@ private void sendMessageToAnotherClient() throws IOException {
     
     
 
-    public void receiveAudio(File audioFile, String senderName) {
+    public void receiveAudio1(File audioFile, String senderName) {
         try {
             System.out.println("Recibiendo audio de: " + senderName);
     
@@ -395,55 +401,96 @@ private void sendMessageToAnotherClient() throws IOException {
         }
     }
 
-    private void sendAudioToGroup() throws IOException {
-    out.println("Mis grupos: " + getMyGroups());
-    out.println("Escribe el nombre del grupo al que deseas enviar un audio:");
-    String groupName = in.readLine();
+    public void sendAudioToGroup() throws IOException {
+        out.println("Mis grupos: " + getMyGroups());
+        out.println("Escribe el nombre del grupo al que deseas enviar un audio:");
+        String groupName = in.readLine();
+        
+        Group group = Server.groups.get(groupName);
+        if (group != null && myGroups.contains(group)) {
+            out.println("Escribe la ruta del archivo de audio:");
+            String audioFilePath = in.readLine();
+            File audioFile = new File(audioFilePath);
     
-    Group group = Server.groups.get(groupName);
-    if (group != null && myGroups.contains(group)) {
-        out.println("Escribe la ruta del archivo de audio:");
-        String audioFilePath = in.readLine();
-        File audioFile = new File(audioFilePath);
-
-        if (!audioFile.exists()) {
-            out.println("Archivo no encontrado.");
-            return;
-        }
-
-        out.println("Enviando audio al grupo " + groupName);
-        
-        // Usar ExecutorService para manejar envíos concurrentes
-        ExecutorService executor = Executors.newFixedThreadPool(5);
-        
-        for (ClientHandler member : group.getMembers()) {
-            if (!member.equals(this)) {
-                executor.submit(() -> {
-                    try {
-                        member.receiveGroupAudio(audioFile, name, groupName);
-                    } catch (IOException e) {
-                        System.out.println("Error al enviar audio a " + member.name + ": " + e.getMessage());
-                    }
-                });
+            if (!audioFile.exists()) {
+                out.println("Archivo no encontrado.");
+                return;
             }
-        }
-        
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+    
+            out.println("Enviando audio al grupo " + groupName);
+            
+            // Usar ExecutorService para manejar envíos concurrentes
+            ExecutorService executor = Executors.newFixedThreadPool(5);
+            
+            for (ClientHandler member : group.getMembers()) {
+                if (!member.equals(this)) {
+                    executor.submit(() -> {
+                        
+                        member.receiveAudio(audioFile, name);  // Enviar audio y reproducirlo en el cliente
+                        
+                    });
+                }
+            }
+            
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
                 executor.shutdownNow();
             }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
+            
+            out.println("Audio enviado al grupo " + groupName);
+        } else {
+            out.println("No eres miembro de ese grupo o el grupo no existe.");
         }
-        
-        out.println("Audio enviado al grupo " + groupName);
-    } else {
-        out.println("No eres miembro de ese grupo o el grupo no existe.");
     }
-}
+    
+    public void receiveAudio(File audioFile, String senderName) {
+        try {
+            System.out.println("Recibiendo audio de: " + senderName);
 
-public void receiveGroupAudio(File audioFile, String senderName, String groupName) throws IOException {
+            // Guardar el archivo en una carpeta local
+            File outputFile = new File("audios_recibidos/" + audioFile.getName());
+            outputFile.getParentFile().mkdirs();
+
+            try (InputStream in = new FileInputStream(audioFile);
+                 OutputStream out = new FileOutputStream(outputFile)) {
+
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, length);
+                }
+
+                System.out.println("Audio recibido y guardado en: " + outputFile.getAbsolutePath());
+
+                // Reproducir el audio al recibirlo
+                playAudio(outputFile);
+
+            } catch (IOException e) {
+                System.out.println("Error al guardar el audio: " + e.getMessage());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void playAudio(File audioFile) {
+        try {
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioStream);
+            clip.start();
+            System.out.println("Reproduciendo audio...");
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            System.out.println("Error al reproducir el audio: " + e.getMessage());
+        }
+    }
+
+public void receiveGroupAudio1(File audioFile, String senderName, String groupName) throws IOException {
     out.println("GRUPO_AUDIO_FILE:" + audioFile.getName());
     out.println("GRUPO_FILE_SIZE:" + audioFile.length());
     out.println("GRUPO_SENDER:" + senderName);
