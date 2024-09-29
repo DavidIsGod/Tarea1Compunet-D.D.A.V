@@ -5,7 +5,7 @@ public class Client {
     public static void main(String[] args) {
         try {
             Socket socket = new Socket("localhost", 1234);
-            socket.setSoTimeout(30000); // 30 segundos de timeout
+            socket.setSoTimeout(60000); // 60 segundos de timeout
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
