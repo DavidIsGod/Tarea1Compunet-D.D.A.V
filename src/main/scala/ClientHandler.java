@@ -1,6 +1,9 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class ClientHandler implements Runnable {
     private Socket socket;
@@ -44,7 +47,8 @@ public class ClientHandler implements Runnable {
             out.println("4. Mis grupos");
             out.println("5. Enviar mensaje a un grupo"); // Nueva opción
             out.println("6. Enviar audio a una persona");
-            out.println("7. Salir");
+            out.println("7. Envair audio a un grupo");
+            out.println("0. Salir");
             out.println("Elige una opción:");
 
             String option = in.readLine();
@@ -72,7 +76,11 @@ public class ClientHandler implements Runnable {
                 case "6":
                     sendAudioToAnotherClient();
                     break;
+
                 case "7":
+                    sendAudioToGroup();
+                    break;
+                case "0":
                     running = false;
                     break;
                 default:
@@ -386,6 +394,89 @@ private void sendMessageToAnotherClient() throws IOException {
             e.printStackTrace();
         }
     }
+
+    private void sendAudioToGroup() throws IOException {
+    out.println("Mis grupos: " + getMyGroups());
+    out.println("Escribe el nombre del grupo al que deseas enviar un audio:");
+    String groupName = in.readLine();
+    
+    Group group = Server.groups.get(groupName);
+    if (group != null && myGroups.contains(group)) {
+        out.println("Escribe la ruta del archivo de audio:");
+        String audioFilePath = in.readLine();
+        File audioFile = new File(audioFilePath);
+
+        if (!audioFile.exists()) {
+            out.println("Archivo no encontrado.");
+            return;
+        }
+
+        out.println("Enviando audio al grupo " + groupName);
+        
+        // Usar ExecutorService para manejar envíos concurrentes
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        
+        for (ClientHandler member : group.getMembers()) {
+            if (!member.equals(this)) {
+                executor.submit(() -> {
+                    try {
+                        member.receiveGroupAudio(audioFile, name, groupName);
+                    } catch (IOException e) {
+                        System.out.println("Error al enviar audio a " + member.name + ": " + e.getMessage());
+                    }
+                });
+            }
+        }
+        
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+        }
+        
+        out.println("Audio enviado al grupo " + groupName);
+    } else {
+        out.println("No eres miembro de ese grupo o el grupo no existe.");
+    }
+}
+
+public void receiveGroupAudio(File audioFile, String senderName, String groupName) throws IOException {
+    out.println("GRUPO_AUDIO_FILE:" + audioFile.getName());
+    out.println("GRUPO_FILE_SIZE:" + audioFile.length());
+    out.println("GRUPO_SENDER:" + senderName);
+    out.println("GRUPO_NAME:" + groupName);
+    
+    try (FileInputStream fileInputStream = new FileInputStream(audioFile)) {
+        OutputStream outputStream = socket.getOutputStream();
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        long totalSent = 0;
+        long fileSize = audioFile.length();
+        
+        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, bytesRead);
+            totalSent += bytesRead;
+            
+            // Enviar progreso
+            if (totalSent % (fileSize / 100) == 0) {
+                int progress = (int)((totalSent * 100) / fileSize);
+                out.println("GRUPO_PROGRESS:" + progress);
+            }
+        }
+        outputStream.flush();
+
+        // Esperar confirmación del cliente
+        String confirmation = in.readLine();
+        if ("GRUPO_FILE_RECEIVED_OK".equals(confirmation)) {
+            System.out.println("Audio de grupo enviado correctamente a " + name);
+        } else {
+            System.out.println("Error al enviar audio de grupo a " + name + ". El cliente no confirmó la recepción completa.");
+        }
+    }
+}
     
     
     
